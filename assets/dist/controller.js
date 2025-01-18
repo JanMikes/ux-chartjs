@@ -35,22 +35,19 @@ class default_1 extends Controller {
         this.chart = new Chart(canvasContext, payload);
         this.dispatchEvent('connect', { chart: this.chart });
     }
-    disconnect() {
-        this.dispatchEvent('disconnect', { chart: this.chart });
-        if (this.chart) {
-            this.chart.destroy();
-            this.chart = null;
-        }
-    }
     viewValueChanged() {
         if (this.chart) {
             const viewValue = { data: this.viewValue.data, options: this.viewValue.options };
             if (Array.isArray(viewValue.options) && 0 === viewValue.options.length) {
                 viewValue.options = {};
             }
+
+            // Merge the existing options (Proxy object) with the new options
+            const options = this._createMergedOptions(this.chart.options, viewValue.options);
+
             this.dispatchEvent('view-value-change', viewValue);
             this.chart.data = viewValue.data;
-            this.chart.options = viewValue.options;
+            this.chart.options = options;
             this.chart.update();
             const parentElement = this.element.parentElement;
             if (parentElement && this.chart.options.responsive) {
@@ -64,6 +61,27 @@ class default_1 extends Controller {
     }
     dispatchEvent(name, payload) {
         this.dispatch(name, { detail: payload, prefix: 'chartjs' });
+    }
+    _createMergedOptions(chartOptions, viewOptions) {
+        const result = {};
+
+        for (const key in chartOptions) {
+            if (chartOptions[key] && typeof chartOptions[key] === 'object' && !Array.isArray(chartOptions[key])) {
+                result[key] = this._createMergedOptions(chartOptions[key], viewOptions[key] || {});
+            } else {
+                result[key] = chartOptions[key];
+            }
+        }
+
+        for (const key in viewOptions) {
+            if (viewOptions[key] && typeof viewOptions[key] === 'object' && !Array.isArray(viewOptions[key])) {
+                result[key] = this._createMergedOptions(chartOptions[key] || {}, viewOptions[key]);
+            } else {
+                result[key] = viewOptions[key];
+            }
+        }
+
+        return result;
     }
 }
 default_1.values = {
